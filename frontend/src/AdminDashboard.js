@@ -1,15 +1,27 @@
 import React, { useState, useEffect } from 'react';
-import { getAllStreams, createStream } from './api';
+import { getAllStreams, createStream, getConfig } from './api';
 import { Link } from 'react-router-dom';
 import { QRCodeSVG } from 'qrcode.react';
 
 const AdminDashboard = () => {
     const [streams, setStreams] = useState([]);
-    const [newStreamName, setNewStreamName] = useState('');
+    const [serverIp, setServerIp] = useState('');
+    const [port, setPort] = useState('3000');
 
     useEffect(() => {
         fetchStreams();
+        fetchConfig();
     }, []);
+
+    const fetchConfig = async () => {
+        try {
+            const { data } = await getConfig();
+            setServerIp(data.server_ip);
+            setPort(data.frontend_port);
+        } catch (err) {
+            console.error("Error fetching config", err);
+        }
+    };
 
     const fetchStreams = async () => {
         try {
@@ -66,7 +78,7 @@ const AdminDashboard = () => {
                         <div className="card border-0 shadow hover-card">
                             <div className="card-body d-flex align-items-center">
                                 <div className="me-3">
-                                    <QRCodeSVG value={`${window.location.origin}/stream/${stream.stream_id}`} size={80} />
+                                    <QRCodeSVG value={`http://${serverIp || 'localhost'}:${port}/stream/${stream.stream_id}`} size={80} />
                                 </div>
                                 <div className="flex-grow-1">
                                     <h5 className="mb-1">{stream.name}</h5>
@@ -74,7 +86,7 @@ const AdminDashboard = () => {
                                     <div className="d-flex gap-2">
                                         <Link to={`/stream/${stream.stream_id}`} className="btn btn-primary btn-sm">View Real-time</Link>
                                         <button className="btn btn-light btn-sm" onClick={() => {
-                                            navigator.clipboard.writeText(`${window.location.origin}/stream/${stream.stream_id}`);
+                                            navigator.clipboard.writeText(`http://${serverIp || 'localhost'}:${port}/stream/${stream.stream_id}`);
                                             alert('Copied link!');
                                         }}>Copy Link</button>
                                     </div>

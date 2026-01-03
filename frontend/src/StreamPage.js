@@ -14,23 +14,39 @@ const StreamPage = ({ match }) => {
         loadData();
 
         // Socket.io Setup
-        const socket = io({ path: '/socket.io' }); // Use the window location by default
+        const socket = io(window.location.origin, {
+            path: '/socket.io',
+            transports: ['websocket', 'polling']
+        });
 
-        socket.emit('join', { room: streamId });
+        socket.on('connect', () => {
+            console.log('Connected to socket server');
+            socket.emit('join', { room: streamId });
+        });
+
+        socket.on('connect_error', (err) => {
+            console.error('Socket connection error:', err);
+        });
 
         socket.on('new_task', (task) => {
+            console.log('New task received:', task);
             setTasks(prev => [task, ...prev]);
         });
 
         socket.on('task_updated', (updatedTask) => {
+            console.log('Task updated:', updatedTask);
             setTasks(prev => prev.map(t => t._id === updatedTask._id ? updatedTask : t));
         });
 
         socket.on('task_deleted', ({ task_id }) => {
+            console.log('Task deleted:', task_id);
             setTasks(prev => prev.filter(t => t._id !== task_id));
         });
 
-        return () => socket.disconnect();
+        return () => {
+            console.log('Disconnecting socket');
+            socket.disconnect();
+        };
     }, [streamId]);
 
     const loadData = async () => {

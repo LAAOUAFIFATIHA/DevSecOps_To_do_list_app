@@ -1,3 +1,6 @@
+import eventlet
+eventlet.monkey_patch()
+
 from flask import Flask, jsonify, request
 from flask_pymongo import PyMongo
 from bson.objectid import ObjectId
@@ -7,6 +10,18 @@ from flask_jwt_extended import JWTManager, create_access_token, jwt_required, ge
 import os
 import uuid
 import datetime
+import socket
+
+def get_local_ip():
+    try:
+        # Create a dummy socket to detect the local network IP
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return "127.0.0.1"
 
 app = Flask(__name__)
 
@@ -47,6 +62,14 @@ def admin_login():
         token = create_access_token(identity=username, expires_delta=datetime.timedelta(hours=24))
         return jsonify(access_token=token), 200
     return jsonify({"msg": "Bad username or password"}), 401
+
+@app.route('/api/config', methods=['GET'])
+def get_config():
+    server_ip = os.environ.get('SERVER_IP') or get_local_ip()
+    return jsonify({
+        "server_ip": server_ip,
+        "frontend_port": os.environ.get('FRONTEND_PORT', '3000')
+    }), 200
 
 # --- STREAM ROUTES ---
 @app.route('/api/streams', methods=['POST'])

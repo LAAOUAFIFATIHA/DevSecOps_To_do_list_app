@@ -39,4 +39,7 @@ export const deleteTask = (taskId) =>
 export const updateTaskStatus = (taskId, status) =>
     api.patch(`/tasks/${taskId}/status`, { status });
 
+export const getConfig = () =>
+    api.get('/config');
+
 export default api;
