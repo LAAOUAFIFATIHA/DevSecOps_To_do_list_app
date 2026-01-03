@@ -1,7 +1,8 @@
 import React, { Component } from 'react';
-import { BrowserRouter as Router, Route, Switch, Redirect } from 'react-router-dom';
+import { BrowserRouter as Router, Route, Switch, Redirect, Link } from 'react-router-dom';
 import AdminLogin from './AdminLogin';
 import AdminDashboard from './AdminDashboard';
+import AdminStreamPage from './AdminStreamPage';
 import StreamPage from './StreamPage';
 import AddTask from './AddTask';
 
@@ -18,13 +19,15 @@ class App extends Component {
   render() {
     return (
       <Router>
-        <div className="App bg-light min-vh-100">
-          {/* Main Navigation */}
-          <nav className="navbar navbar-dark bg-dark shadow-sm">
+        <div className="App min-vh-100">
+          {/* Enhanced Navbar */}
+          <nav className="navbar navbar-expand-lg navbar-dark shadow-lg sticky-top">
             <div className="container">
-              <a className="navbar-brand fw-bold" href="/">TaskStream Pro</a>
-              <div>
-                <a className="btn btn-outline-light btn-sm" href="/admin/login">Admin Console</a>
+              <Link className="navbar-brand" to="/">
+                <span className="fs-3">⚡</span> <strong>TaskStream</strong> <small className="opacity-75">PRO</small>
+              </Link>
+              <div className="ms-auto flex-row d-flex gap-2">
+                <Link className="btn btn-outline-light btn-sm px-3 rounded-pill" to="/admin/dashboard">Admin Console</Link>
               </div>
             </div>
           </nav>
@@ -32,12 +35,21 @@ class App extends Component {
           <Switch>
             <Route exact path="/admin/login" component={AdminLogin} />
             <PrivateRoute exact path="/admin/dashboard" component={AdminDashboard} />
+            <PrivateRoute exact path="/admin/stream/:streamId" component={AdminStreamPage} />
             <Route exact path="/stream/:streamId" component={StreamPage} />
             <Route exact path="/stream/:streamId/add" component={AddTask} />
             <Route path="/" render={() => (
               localStorage.getItem('admin_token')
                 ? <Redirect to="/admin/dashboard" />
-                : <Redirect to="/admin/login" />
+                : <Route exact path="/" render={() => (
+                  <div className="container py-5 text-center animate-fade-in">
+                    <div className="glass-card p-5">
+                      <h1 className="display-4 fw-bold mb-3">Enterprise Real-time Tasks</h1>
+                      <p className="lead text-muted mb-4">Scan a QR code or use a stream link to start collaborating.</p>
+                      <Link to="/admin/login" className="btn btn-primary btn-lg px-5">Admin Portal</Link>
+                    </div>
+                  </div>
+                )} />
             )} />
           </Switch>
         </div>

@@ -5,22 +5,27 @@ from flask import Flask, jsonify, request
 from flask_pymongo import PyMongo
 from bson.objectid import ObjectId
 from flask_cors import CORS
-from flask_socketio import SocketIO, emit, join_room
+from flask_socketio import SocketIO, emit, join_room, leave_room
 from flask_jwt_extended import JWTManager, create_access_token, jwt_required, get_jwt_identity
 import os
 import uuid
 import datetime
 import socket
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 def get_local_ip():
     try:
-        # Create a dummy socket to detect the local network IP
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         s.connect(("8.8.8.8", 80))
         ip = s.getsockname()[0]
         s.close()
         return ip
-    except Exception:
+    except Exception as e:
+        logger.error(f"Error detecting local IP: {e}")
         return "127.0.0.1"
 
 app = Flask(__name__)
@@ -33,10 +38,9 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'socket-secret')
 
 mongo = PyMongo(app)
 CORS(app, resources={r"/*": {"origins": "*"}})
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet', logger=True, engineio_logger=True)
 jwt = JWTManager(app)
 
-# Helper to serialize Mongo objects
 def serialize_mongo(obj):
     if isinstance(obj, list):
         return [serialize_mongo(i) for i in obj]
@@ -57,7 +61,6 @@ def admin_login():
     username = data.get('username')
     password = data.get('password')
     
-    # Hardcoded for demo/exercise purposes - in production use hashed passwords in DB
     if username == "admin" and password == "admin123":
         token = create_access_token(identity=username, expires_delta=datetime.timedelta(hours=24))
         return jsonify(access_token=token), 200
@@ -65,7 +68,6 @@ def admin_login():
 
 @app.route('/api/config', methods=['GET'])
 def get_config():
-    # Prioritize environment variables for external access
     frontend_url = os.environ.get('FRONTEND_URL')
     if not frontend_url:
         ip = os.environ.get('SERVER_IP') or get_local_ip()
@@ -83,7 +85,7 @@ def get_config():
 def create_stream():
     data = request.get_json()
     name = data.get('name', 'New Stream')
-    stream_id = str(uuid.uuid4())[:8] # Short unique ID
+    stream_id = str(uuid.uuid4())[:8]
     
     stream = {
         "stream_id": stream_id,
@@ -124,13 +126,14 @@ def add_task_to_stream(stream_id):
         "user_name": name,
         "description": description,
         "votes": 0,
-        "status": "pending", # pending, accepted, refused
+        "status": "pending",
         "created_at": datetime.datetime.utcnow()
     }
     result = mongo.db.tasks.insert_one(task)
     task['_id'] = str(result.inserted_id)
     
-    # Notify subscribers
+    # EMIT TO ROOM
+    logger.info(f"Broadcasting new task in room {stream_id}")
     socketio.emit('new_task', serialize_mongo(task), room=stream_id)
     return jsonify(serialize_mongo(task)), 201
 
@@ -138,10 +141,13 @@ def add_task_to_stream(stream_id):
 def vote_task(task_id):
     mongo.db.tasks.update_one({"_id": ObjectId(task_id)}, {"$inc": {"votes": 1}})
     task = mongo.db.tasks.find_one({"_id": ObjectId(task_id)})
-    socketio.emit('task_updated', serialize_mongo(task), room=task['stream_id'])
-    return jsonify(serialize_mongo(task)), 200
+    if task:
+        logger.info(f"Broadcasting task update in room {task['stream_id']}")
+        socketio.emit('task_updated', serialize_mongo(task), room=task['stream_id'])
+        return jsonify(serialize_mongo(task)), 200
+    return jsonify({"msg": "Not found"}), 404
 
-# --- ADMIN TASK CONTROLS ---
+# --- ADMIN TASK CONTROLS (Protected by JWT) ---
 @app.route('/api/tasks/<task_id>', methods=['DELETE'])
 @jwt_required()
 def delete_task(task_id):
@@ -149,6 +155,7 @@ def delete_task(task_id):
     if task:
         stream_id = task['stream_id']
         mongo.db.tasks.delete_one({"_id": ObjectId(task_id)})
+        logger.info(f"Broadcasting task deletion in room {stream_id}")
         socketio.emit('task_deleted', {"task_id": task_id}, room=stream_id)
         return jsonify({"msg": "Task deleted"}), 200
     return jsonify({"msg": "Not found"}), 404
@@ -157,23 +164,37 @@ def delete_task(task_id):
 @jwt_required()
 def update_task_status(task_id):
     data = request.get_json()
-    status = data.get('status') # accepted, refused
+    status = data.get('status')
     
     mongo.db.tasks.update_one({"_id": ObjectId(task_id)}, {"$set": {"status": status}})
     task = mongo.db.tasks.find_one({"_id": ObjectId(task_id)})
-    socketio.emit('task_updated', serialize_mongo(task), room=task['stream_id'])
-    return jsonify(serialize_mongo(task)), 200
+    if task:
+        logger.info(f"Broadcasting task status update in room {task['stream_id']}")
+        socketio.emit('task_updated', serialize_mongo(task), room=task['stream_id'])
+        return jsonify(serialize_mongo(task)), 200
+    return jsonify({"msg": "Not found"}), 404
 
 # --- SOCKET EVENTS ---
 @socketio.on('join')
 def on_join(data):
-    room = data['room']
-    join_room(room)
-    print(f"User joined room: {room}")
+    room = data.get('room')
+    if room:
+        join_room(room)
+        logger.info(f"SOCKET: Client joined room {room}")
+        emit('status', {'msg': f'Joined room {room}'})
+
+@socketio.on('leave')
+def on_leave(data):
+    room = data.get('room')
+    if room:
+        leave_room(room)
+        logger.info(f"SOCKET: Client left room {room}")
 
 @app.route('/health', methods=['GET'])
 def health():
     return jsonify({"status": "up"}), 200
 
 if __name__ == '__main__':
-    socketio.run(app, debug=True, host='0.0.0.0', port=5000)
+    # Use standard run with eventlet
+    logger.info("Starting Enterprise TaskStream Backend...")
+    socketio.run(app, debug=False, host='0.0.0.0', port=5000)

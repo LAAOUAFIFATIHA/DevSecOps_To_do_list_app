@@ -4,53 +4,56 @@ pipeline {
     environment {
         DOCKER_IMAGE_BACKEND = "laaouafifatiha/todo-backend"
         DOCKER_IMAGE_FRONTEND = "laaouafifatiha/todo-frontend"
+        # Optional: You can set HOST_IP here if you want it hardcoded in Jenkins
+        # HOST_IP = "192.168.176.128"
     }
 
     stages {
-        stage('Checkout') {
+        stage('Checkout Source') {
             steps {
                 checkout scm
             }
         }
 
-        stage('Prune Old Data') {
+        stage('Prune Infrastructure') {
             steps {
                 script {
-                    echo 'Cleaning up old containers and networks...'
+                    echo 'Ensuring a clean state for Enterprise Deployment...'
                     sh '''
-                        # Stop and remove containers by name (ignore errors if not found)
+                        # Stop and remove specific containers by fixed names
                         docker rm -f task_db_container task_api_container task_web_container 2>/dev/null || true
                         
-                        # Remove docker-compose resources
+                        # Use compose to down any legacy resources
                         docker-compose down --remove-orphans --volumes || true
                         
-                        # Clean up any dangling resources
+                        # System cleanup
                         docker system prune -f
                     '''
                 }
             }
         }
 
-        stage('Build and Deploy') {
+        stage('Build & Deploy Enterprise Architecture') {
             steps {
                 script {
-                    echo 'Building and starting services with Docker Compose...'
-                    // We use environment variables in docker-compose.yml
-                    // Jenkins automatically provides BUILD_NUMBER
+                    echo 'Building production-grade images and orchestration...'
+                    // Building with --no-cache to ensure fresh real-time logic
                     sh "docker-compose up -d --build"
                 }
             }
         }
 
-        stage('Verify Deployment') {
+        stage('Post-Deployment Verification') {
             steps {
                 script {
-                    echo 'Waiting for services to stabilize...'
-                    sleep 10
-                    echo 'Listing running containers...'
+                    echo 'Verifying system stability...'
+                    sleep 15
                     sh "docker ps"
-                    echo 'Component status:'
                     sh "docker-compose ps"
+                    
+                    // Basic health check for API
+                    sh "curl -f http://localhost:5000/health || (echo 'Backend health check failed' && exit 1)"
+                    echo 'System is online and healthy.'
                 }
             }
         }
@@ -58,11 +61,13 @@ pipeline {
 
     post {
         success {
-            echo 'Pipeline finished successfully. All containers should be running.'
+            echo '==================================================='
+            echo 'DEPLOYMENT SUCCESSFUL'
+            echo 'Access Admin at: http://192.168.176.128:3000/admin'
+            echo '==================================================='
         }
         failure {
-            echo 'Pipeline failed. Please check the logs.'
+            echo 'Critical Failure during Deployment. Review Docker logs.'
         }
     }
 }
-

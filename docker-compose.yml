@@ -8,7 +8,7 @@ services:
     ports:
       - "3000:80"
     environment:
-      - REACT_APP_API_URL=http://backend:5000
+      - REACT_APP_API_URL=/api
     depends_on:
       - backend
     restart: always
@@ -24,7 +24,9 @@ services:
     environment:
       - MONGO_URI=mongodb://mongo:27017/tododb
       - FLASK_ENV=development
-      - JWT_SECRET_KEY=dev-secret-key-123
+      - JWT_SECRET_KEY=enterprise-secret-2026
+      # CONFIGURATION FOR EXTERNAL ACCESS
+      # Replace HOST_IP with the accessible IP of your VM (e.g. 192.168.176.128)
       - FRONTEND_URL=http://${HOST_IP:-192.168.176.128}:3000
       - BACKEND_URL=http://${HOST_IP:-192.168.176.128}:5000
     depends_on:
@@ -51,5 +53,3 @@ volumes:
 networks:
   todo-network:
     driver: bridge
-
-
