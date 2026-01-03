@@ -2,8 +2,8 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE_BACKEND = "my-backend-app"
-        DOCKER_IMAGE_FRONTEND = "my-frontend-app"
+        DOCKER_IMAGE_BACKEND = "laaouafifatiha/todo-backend"
+        DOCKER_IMAGE_FRONTEND = "laaouafifatiha/todo-frontend"
     }
 
     stages {
@@ -13,48 +13,47 @@ pipeline {
             }
         }
 
-        stage('Build Backend') {
+        stage('Prune Old Data') {
             steps {
                 script {
-                    echo 'Building Backend Image...'
-                    sh "docker build -t ${DOCKER_IMAGE_BACKEND}:${BUILD_NUMBER} ./backend"
+                    echo 'Cleaning up old containers and networks...'
+                    sh "docker-compose down --remove-orphans"
                 }
             }
         }
 
-        stage('Build Frontend') {
+        stage('Build and Deploy') {
             steps {
                 script {
-                    echo 'Building Frontend Image...'
-                    sh "docker build -t ${DOCKER_IMAGE_FRONTEND}:${BUILD_NUMBER} ./frontend"
+                    echo 'Building and starting services with Docker Compose...'
+                    // We use environment variables in docker-compose.yml
+                    // Jenkins automatically provides BUILD_NUMBER
+                    sh "docker-compose up -d --build"
                 }
             }
         }
 
-        stage('Test') {
+        stage('Verify Deployment') {
             steps {
                 script {
-                    echo 'Running Tests...'
-                    // Example: sh "docker-compose up -d"
-                    // Add your actual test commands here
-                }
-            }
-        }
-
-        stage('Docker Compose Up') {
-            steps {
-                script {
-                    echo 'Starting services with Docker Compose...'
-                    sh "docker-compose up -d"
+                    echo 'Waiting for services to stabilize...'
+                    sleep 10
+                    echo 'Listing running containers...'
+                    sh "docker ps"
+                    echo 'Component status:'
+                    sh "docker-compose ps"
                 }
             }
         }
     }
 
     post {
-        always {
-            echo 'Cleanup...'
-            // sh "docker-compose down"
+        success {
+            echo 'Pipeline finished successfully. All containers should be running.'
+        }
+        failure {
+            echo 'Pipeline failed. Please check the logs.'
         }
     }
 }
+

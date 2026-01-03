@@ -1,15 +1,15 @@
-db = db.getSiblingDB('mongotask');
+db = db.getSiblingDB('tododb');
 
 db.createUser({
     user: 'zh',
     pwd: 'test',
-    roles: [{ role: 'readWrite', db: 'mongotask' }]
+    roles: [{ role: 'readWrite', db: 'tododb' }]
 });
 
 db.createUser({
     user: 'ziyati',
     pwd: 'test',
-    roles: [{ role: 'readWrite', db: 'mongotask' }]
+    roles: [{ role: 'readWrite', db: 'tododb' }]
 });
 
 db.tasks.insertMany([
