@@ -17,7 +17,16 @@ pipeline {
             steps {
                 script {
                     echo 'Cleaning up old containers and networks...'
-                    sh "docker-compose down --remove-orphans"
+                    sh '''
+                        # Stop and remove containers by name (ignore errors if not found)
+                        docker rm -f task_db_container task_api_container task_web_container 2>/dev/null || true
+                        
+                        # Remove docker-compose resources
+                        docker-compose down --remove-orphans --volumes || true
+                        
+                        # Clean up any dangling resources
+                        docker system prune -f
+                    '''
                 }
             }
         }
