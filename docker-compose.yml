@@ -4,7 +4,7 @@ services:
   frontend:
     build: ./frontend
     image: laaouafifatiha/todo-frontend:latest
-    container_name: todo_frontend
+    container_name: task_web_container
     ports:
       - "3000:80"
     environment:
@@ -18,7 +18,7 @@ services:
   backend:
     build: ./backend
     image: laaouafifatiha/todo-backend:latest
-    container_name: todo_backend
+    container_name: task_api_container
     ports:
       - "5000:5000"
     environment:
@@ -32,7 +32,7 @@ services:
 
   mongo:
     image: mongo:6
-    container_name: todo_mongo
+    container_name: task_db_container
     ports:
       - "27017:27017"
     volumes:
