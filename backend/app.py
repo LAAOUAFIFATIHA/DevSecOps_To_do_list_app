@@ -197,12 +197,17 @@ def on_leave(data):
 
 @app.route('/health', methods=['GET'])
 def health():
-    return jsonify({'status': 'healthy'}), 200
+    try:
+        # Check DB connection
+        mongo.cx.admin.command('ping')
+        return jsonify({'status': 'healthy', 'db': 'connected'}), 200
+    except Exception as e:
+        return jsonify({'status': 'degraded', 'error': str(e)}), 500
 
 if __name__ == '__main__':
     try:
         # Use standard run with eventlet
-        logger.info("Starting Enterprise TaskStream Backend...")
+        logger.info("Initializing Enterprise Backend...")
         
         # Retry logic for MongoDB connection
         import time
@@ -219,6 +224,7 @@ if __name__ == '__main__':
         else:
             logger.error("Could not connect to MongoDB after multiple retries.")
         
+        logger.info("Starting Flask-SocketIO Server on 0.0.0.0:5000")
         socketio.run(app, debug=False, host='0.0.0.0', port=5000)
     except Exception as e:
         logger.critical(f"FATAL ERROR ON STARTUP: {str(e)}")
