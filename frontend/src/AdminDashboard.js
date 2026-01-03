@@ -5,6 +5,7 @@ import { QRCodeSVG } from 'qrcode.react';
 
 const AdminDashboard = () => {
     const [streams, setStreams] = useState([]);
+    const [newStreamName, setNewStreamName] = useState('');
     const [serverIp, setServerIp] = useState('');
     const [port, setPort] = useState('3000');
 
