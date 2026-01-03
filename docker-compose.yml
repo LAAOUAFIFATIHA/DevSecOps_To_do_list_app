@@ -45,11 +45,11 @@ services:
       - mongo_data:/data/db
       - ./mongodb/init-db.js:/docker-entrypoint-initdb.d/init-db.js:ro
     healthcheck:
-      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 10s
-      timeout: 10s
+      timeout: 5s
       retries: 5
-      start_period: 40s
+      start_period: 60s
     restart: always
     networks:
       - todo-network
