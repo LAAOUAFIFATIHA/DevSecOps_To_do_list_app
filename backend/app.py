@@ -200,6 +200,27 @@ def health():
     return jsonify({'status': 'healthy'}), 200
 
 if __name__ == '__main__':
-    # Use standard run with eventlet
-    logger.info("Starting Enterprise TaskStream Backend...")
-    socketio.run(app, debug=False, host='0.0.0.0', port=5000)
+    try:
+        # Use standard run with eventlet
+        logger.info("Starting Enterprise TaskStream Backend...")
+        
+        # Retry logic for MongoDB connection
+        import time
+        max_retries = 30
+        for i in range(max_retries):
+            try:
+                # Test connection
+                mongo.cx.admin.command('ping')
+                logger.info("MongoDB connection successful!")
+                break
+            except Exception as e:
+                logger.warning(f"Waiting for MongoDB... ({i+1}/{max_retries}) - {e}")
+                time.sleep(2)
+        else:
+            logger.error("Could not connect to MongoDB after multiple retries.")
+        
+        socketio.run(app, debug=False, host='0.0.0.0', port=5000)
+    except Exception as e:
+        logger.critical(f"FATAL ERROR ON STARTUP: {str(e)}")
+        import traceback
+        traceback.print_exc()
