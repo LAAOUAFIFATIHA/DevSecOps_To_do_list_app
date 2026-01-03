@@ -209,21 +209,27 @@ if __name__ == '__main__':
         # Use standard run with eventlet
         logger.info("Initializing Enterprise Backend...")
         
-        # Retry logic for MongoDB connection
+        # Retry logic for MongoDB connection (TCP Check)
         import time
+        import socket
+        
+        logger.info(f"Connecting to MongoDB at mongo:27017...")
         max_retries = 30
         for i in range(max_retries):
             try:
-                # Test connection
-                mongo.cx.admin.command('ping')
-                logger.info("MongoDB connection successful!")
+                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                s.settimeout(2)
+                s.connect(('mongo', 27017))
+                s.close()
+                logger.info("MongoDB TCP connection successful!")
                 break
             except Exception as e:
-                logger.warning(f"Waiting for MongoDB... ({i+1}/{max_retries}) - {e}")
+                logger.warning(f"Waiting for MongoDB TCP... ({i+1}/{max_retries})")
                 time.sleep(2)
         else:
-            logger.error("Could not connect to MongoDB after multiple retries.")
-        
+             logger.error("Could not connect to MongoDB port after multiple retries.")
+             # Continue anyway, PyMongo might recover later
+             
         logger.info("Starting Flask-SocketIO Server on 0.0.0.0:5000")
         socketio.run(app, debug=False, host='0.0.0.0', port=5000)
     except Exception as e:
