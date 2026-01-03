@@ -31,10 +31,14 @@ class App extends Component {
 
           <Switch>
             <Route exact path="/admin/login" component={AdminLogin} />
-            <Route exact path="/admin/dashboard" component={AdminDashboard} />
+            <PrivateRoute exact path="/admin/dashboard" component={AdminDashboard} />
             <Route exact path="/stream/:streamId" component={StreamPage} />
             <Route exact path="/stream/:streamId/add" component={AddTask} />
-            <Route path="/" render={() => <Redirect to="/admin/login" />} />
+            <Route path="/" render={() => (
+              localStorage.getItem('admin_token')
+                ? <Redirect to="/admin/dashboard" />
+                : <Redirect to="/admin/login" />
+            )} />
           </Switch>
         </div>
       </Router>
