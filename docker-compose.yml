@@ -30,7 +30,8 @@ services:
       - FRONTEND_URL=http://${HOST_IP:-192.168.176.128}:3000
       - BACKEND_URL=http://${HOST_IP:-192.168.176.128}:5000
     depends_on:
-      - mongo
+      mongo:
+        condition: service_healthy
     restart: always
     networks:
       - todo-network
@@ -43,6 +44,12 @@ services:
     volumes:
       - mongo_data:/data/db
       - ./mongodb/init-db.js:/docker-entrypoint-initdb.d/init-db.js:ro
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh localhost:27017/test --quiet
+      interval: 10s
+      timeout: 10s
+      retries: 5
+      start_period: 40s
     restart: always
     networks:
       - todo-network
