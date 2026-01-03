@@ -4,8 +4,8 @@ pipeline {
     environment {
         DOCKER_IMAGE_BACKEND = "laaouafifatiha/todo-backend"
         DOCKER_IMAGE_FRONTEND = "laaouafifatiha/todo-frontend"
-        # Optional: You can set HOST_IP here if you want it hardcoded in Jenkins
-        # HOST_IP = "192.168.176.128"
+        // Optional: You can set HOST_IP here if you want it hardcoded in Jenkins
+        // HOST_IP = "192.168.176.128"
     }
 
     stages {
