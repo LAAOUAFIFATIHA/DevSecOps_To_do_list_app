@@ -10,7 +10,7 @@ const PrivateRoute = ({ component: Component, ...rest }) => (
   <Route {...rest} render={(props) => (
     localStorage.getItem('admin_token')
       ? <Component {...props} />
-      : <Redirect href='/admin/login' />
+      : <Redirect to='/admin/login' />
   )} />
 );
 
