@@ -51,8 +51,8 @@ pipeline {
                     sh "docker ps"
                     sh "docker-compose ps"
                     
-                    // Basic health check for API
-                    sh "curl -f http://localhost:5000/health || (echo 'Backend health check failed' && exit 1)"
+                    // Robust health check from INSIDE the container network
+                    sh "docker exec task_api_container curl -f http://localhost:5000/health || (echo 'Backend health check failed' && exit 1)"
                     echo 'System is online and healthy.'
                 }
             }
