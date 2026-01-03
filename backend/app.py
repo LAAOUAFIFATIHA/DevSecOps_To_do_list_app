@@ -65,10 +65,16 @@ def admin_login():
 
 @app.route('/api/config', methods=['GET'])
 def get_config():
-    server_ip = os.environ.get('SERVER_IP') or get_local_ip()
+    # Prioritize environment variables for external access
+    frontend_url = os.environ.get('FRONTEND_URL')
+    if not frontend_url:
+        ip = os.environ.get('SERVER_IP') or get_local_ip()
+        port = os.environ.get('FRONTEND_PORT', '3000')
+        frontend_url = f"http://{ip}:{port}"
+    
     return jsonify({
-        "server_ip": server_ip,
-        "frontend_port": os.environ.get('FRONTEND_PORT', '3000')
+        "frontend_url": frontend_url,
+        "backend_url": os.environ.get('BACKEND_URL', frontend_url)
     }), 200
 
 # --- STREAM ROUTES ---

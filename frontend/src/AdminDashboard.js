@@ -6,8 +6,7 @@ import { QRCodeSVG } from 'qrcode.react';
 const AdminDashboard = () => {
     const [streams, setStreams] = useState([]);
     const [newStreamName, setNewStreamName] = useState('');
-    const [serverIp, setServerIp] = useState('');
-    const [port, setPort] = useState('3000');
+    const [frontendUrl, setFrontendUrl] = useState('');
 
     useEffect(() => {
         fetchStreams();
@@ -17,8 +16,7 @@ const AdminDashboard = () => {
     const fetchConfig = async () => {
         try {
             const { data } = await getConfig();
-            setServerIp(data.server_ip);
-            setPort(data.frontend_port);
+            setFrontendUrl(data.frontend_url);
         } catch (err) {
             console.error("Error fetching config", err);
         }
@@ -79,7 +77,7 @@ const AdminDashboard = () => {
                         <div className="card border-0 shadow hover-card">
                             <div className="card-body d-flex align-items-center">
                                 <div className="me-3">
-                                    <QRCodeSVG value={`http://${serverIp || 'localhost'}:${port}/stream/${stream.stream_id}`} size={80} />
+                                    <QRCodeSVG value={`${frontendUrl || window.location.origin}/stream/${stream.stream_id}`} size={80} />
                                 </div>
                                 <div className="flex-grow-1">
                                     <h5 className="mb-1">{stream.name}</h5>
@@ -87,7 +85,7 @@ const AdminDashboard = () => {
                                     <div className="d-flex gap-2">
                                         <Link to={`/stream/${stream.stream_id}`} className="btn btn-primary btn-sm">View Real-time</Link>
                                         <button className="btn btn-light btn-sm" onClick={() => {
-                                            navigator.clipboard.writeText(`http://${serverIp || 'localhost'}:${port}/stream/${stream.stream_id}`);
+                                            navigator.clipboard.writeText(`${frontendUrl || window.location.origin}/stream/${stream.stream_id}`);
                                             alert('Copied link!');
                                         }}>Copy Link</button>
                                     </div>

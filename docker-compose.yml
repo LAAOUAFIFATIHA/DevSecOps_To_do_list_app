@@ -25,8 +25,8 @@ services:
       - MONGO_URI=mongodb://mongo:27017/tododb
       - FLASK_ENV=development
       - JWT_SECRET_KEY=dev-secret-key-123
-      - SERVER_IP=${SERVER_IP:-}
-      - FRONTEND_PORT=3000
+      - FRONTEND_URL=http://${HOST_IP:-192.168.176.128}:3000
+      - BACKEND_URL=http://${HOST_IP:-192.168.176.128}:5000
     depends_on:
       - mongo
     restart: always
