@@ -40,12 +40,12 @@ services:
     image: mongo:6
     container_name: task_db_container
     ports:
-      - "27017:27017"
+      - "27018:27017"
     volumes:
       - mongo_data:/data/db
       - ./mongodb/init-db.js:/docker-entrypoint-initdb.d/init-db.js:ro
     healthcheck:
-      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      test: mongosh --eval "db.adminCommand('ping')"
       interval: 10s
       timeout: 5s
       retries: 5
