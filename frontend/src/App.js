@@ -24,11 +24,22 @@ class App extends Component {
           <nav className="navbar navbar-expand-lg navbar-dark shadow-lg sticky-top">
             <div className="container">
               <Link className="navbar-brand" to="/">
-                <span className="fs-3">⚡</span> <strong>TaskStream</strong> <small className="opacity-75">PRO</small>
+                <span className="fs-3"></span> <strong>TaskStream</strong> <small className="opacity-75">PRO</small>
               </Link>
               <div className="ms-auto flex-row d-flex gap-2">
                 {localStorage.getItem('admin_token') && (
-                  <Link className="btn btn-outline-light btn-sm px-3 rounded-pill" to="/admin/dashboard">Admin Console</Link>
+                  <>
+                    <Link className="btn btn-outline-light btn-sm px-3 rounded-pill" to="/admin/dashboard">Admin Console</Link>
+                    <button
+                      className="btn btn-danger btn-sm px-3 rounded-pill"
+                      onClick={() => {
+                        localStorage.removeItem('admin_token');
+                        window.location.href = '/admin/login';
+                      }}
+                    >
+                      Logout
+                    </button>
+                  </>
                 )}
               </div>
             </div>

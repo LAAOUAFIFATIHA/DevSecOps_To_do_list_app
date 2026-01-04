@@ -54,9 +54,13 @@ def serialize_mongo(obj):
         for k, v in obj.items():
             if k == '_id':
                 new_dict[k] = str(v)
+            elif isinstance(v, datetime.datetime):
+                new_dict[k] = v.isoformat()
             else:
                 new_dict[k] = serialize_mongo(v)
         return new_dict
+    if isinstance(obj, datetime.datetime):
+        return obj.isoformat()
     return obj
 
 # --- AUTH ROUTES ---
