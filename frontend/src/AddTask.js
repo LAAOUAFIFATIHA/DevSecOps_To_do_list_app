@@ -11,19 +11,19 @@ const AddTask = ({ match, history }) => {
 
     // Load name from local storage on mount
     useEffect(() => {
-        const savedName = localStorage.getItem('taskstream_username');
+        const savedName = localStorage.getItem(`username_stream_${streamId}`);
         if (savedName) {
             setUserName(savedName);
             setIsNameSaved(true);
         }
-    }, []);
+    }, [streamId]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
         try {
-            // Save name for future use
-            localStorage.setItem('taskstream_username', userName);
+            // Save name for future use FOR THIS STREAM Only
+            localStorage.setItem(`username_stream_${streamId}`, userName);
 
             await addTask(streamId, userName, description);
             // After adding, we go back to the public stream view
@@ -61,7 +61,7 @@ const AddTask = ({ match, history }) => {
                                         style={isNamedSaved ? { backgroundColor: '#e9ecef', cursor: 'not-allowed', color: '#6c757d' } : {}}
                                         required
                                     />
-                                    {isNamedSaved && <small className="text-muted d-block mt-2">Identity verified from previous session. <button type="button" className="btn btn-link btn-sm p-0 ms-1 text-decoration-none" onClick={() => { localStorage.removeItem('taskstream_username'); setIsNameSaved(false); setUserName(''); }}>Changing alias?</button></small>}
+                                    {isNamedSaved && <small className="text-muted d-block mt-2">Identity verified from previous session. <button type="button" className="btn btn-link btn-sm p-0 ms-1 text-decoration-none" onClick={() => { localStorage.removeItem(`username_stream_${streamId}`); setIsNameSaved(false); setUserName(''); }}>Changing alias?</button></small>}
                                 </div>
                                 <div className="mb-5">
                                     <label className="form-label fw-bold text-uppercase small tracking-wider">Task Specification</label>
