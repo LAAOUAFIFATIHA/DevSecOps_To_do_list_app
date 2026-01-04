@@ -160,9 +160,13 @@ def add_task_to_stream(stream_id):
     # Note: participant_count is length of set, easiest to just update distinct count if needed,
     # or just rely on tracking array. For simplicity in display, we leave it.
 
-    # EMIT TO ROOM
-    logger.info(f"Broadcasting new task in room {stream_id}")
-    socketio.emit('new_task', serialize_mongo(task), room=stream_id)
+    # EMIT TO ROOM (Non-blocking attempt)
+    try:
+        logger.info(f"Broadcasting new task in room {stream_id}")
+        socketio.emit('new_task', serialize_mongo(task), room=stream_id)
+    except Exception as e:
+        logger.error(f"Socket emit failed (non-critical): {e}")
+
     return jsonify(serialize_mongo(task)), 201
 
 @app.route('/api/tasks/<task_id>/vote', methods=['PUT'])
