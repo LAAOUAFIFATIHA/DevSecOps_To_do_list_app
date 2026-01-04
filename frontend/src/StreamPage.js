@@ -12,11 +12,12 @@ const StreamPage = ({ match }) => {
     useEffect(() => {
         loadData();
 
-        // Socket.io Setup
-        const socket = io(window.location.origin, {
+        // Socket.IO Setup
+        const socket = io({
             path: '/socket.io',
-            transports: ['websocket', 'polling'],
-            reconnectionAttempts: 5
+            reconnectionAttempts: 10,
+            reconnectionDelay: 1000,
+            timeout: 20000
         });
 
         socket.on('connect', () => {
