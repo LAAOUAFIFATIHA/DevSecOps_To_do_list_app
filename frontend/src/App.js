@@ -27,20 +27,22 @@ class App extends Component {
                 <span className="fs-3"></span> <strong>TaskStream</strong> <small className="opacity-75">PRO</small>
               </Link>
               <div className="ms-auto flex-row d-flex gap-2">
-                {localStorage.getItem('admin_token') && (
-                  <>
-                    <Link className="btn btn-outline-light btn-sm px-3 rounded-pill" to="/admin/dashboard">Admin Console</Link>
-                    <button
-                      className="btn btn-danger btn-sm px-3 rounded-pill"
-                      onClick={() => {
-                        localStorage.removeItem('admin_token');
-                        window.location.href = '/admin/login';
-                      }}
-                    >
-                      Logout
-                    </button>
-                  </>
-                )}
+                <Route render={({ location }) => (
+                  localStorage.getItem('admin_token') && !location.pathname.startsWith('/stream/') && (
+                    <>
+                      <Link className="btn btn-outline-light btn-sm px-3 rounded-pill" to="/admin/dashboard">Admin Console</Link>
+                      <button
+                        className="btn btn-danger btn-sm px-3 rounded-pill"
+                        onClick={() => {
+                          localStorage.removeItem('admin_token');
+                          window.location.href = '/admin/login';
+                        }}
+                      >
+                        Logout
+                      </button>
+                    </>
+                  )
+                )} />
               </div>
             </div>
           </nav>
