@@ -47,12 +47,27 @@ pipeline {
             steps {
                 script {
                     echo 'Verifying system stability...'
-                    sleep 15
                     sh "docker ps"
-                    sh "docker-compose ps"
                     
-                    // Robust health check from INSIDE the container network
-                    sh "docker exec task_api_container curl -f http://localhost:5000/health || (echo 'Backend health check failed' && exit 1)"
+                    echo 'Waiting for Backend to initialize (up to 90s)...'
+                    sh '''
+                        MAX_RETRIES=18
+                        i=0
+                        while [ $i -lt $MAX_RETRIES ]; do
+                            if docker exec task_api_container curl -f -s http://localhost:5000/health > /dev/null; then
+                                echo "✅ Backend is healthy and responding!"
+                                exit 0
+                            fi
+                            echo "⏳ Backend not ready yet... waiting ($i/$MAX_RETRIES)"
+                            sleep 5
+                            i=$((i+1))
+                        done
+                        
+                        echo "❌ Backend failed to start health endpoint within time limit."
+                        echo "--- BACKEND LOGS ---"
+                        docker logs task_api_container
+                        exit 1
+                    '''
                     echo 'System is online and healthy.'
                 }
             }
