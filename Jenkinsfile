@@ -72,6 +72,27 @@ pipeline {
                 }
             }
         }
+
+        stage('Push Images to Docker Hub') {
+            steps {
+                script {
+                    echo 'Pushing verified images to Docker Hub...'
+                    withCredentials([usernamePassword(credentialsId: 'dockerhub-id', passwordVariable: 'DOCKER_PASSWORD', usernameVariable: 'DOCKER_USERNAME')]) {
+                        sh '''
+                            echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+                            
+                            echo "Pushing Backend Image..."
+                            docker push ${DOCKER_IMAGE_BACKEND}:latest
+                            
+                            echo "Pushing Frontend Image..."
+                            docker push ${DOCKER_IMAGE_FRONTEND}:latest
+                            
+                            echo "✅ Images successfully pushed to Docker Hub!"
+                        '''
+                    }
+                }
+            }
+        }
     }
 
     post {

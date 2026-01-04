@@ -9,60 +9,78 @@ const StreamPage = ({ match }) => {
     const [tasks, setTasks] = useState([]);
     const [connected, setConnected] = useState(false);
 
+    const socketRef = React.useRef();
+
     useEffect(() => {
         loadData();
 
-        // Socket.IO Setup
-        const socket = io({
-            path: '/socket.io',
-            reconnectionAttempts: 10,
-            reconnectionDelay: 1000,
-            timeout: 20000
-        });
+        // Socket.IO Singleton
+        if (!socketRef.current) {
+            socketRef.current = io({
+                path: '/socket.io',
+                reconnection: true,
+                reconnectionAttempts: 10,
+                reconnectionDelay: 1000,
+                transports: ['polling', 'websocket'] // Try polling first for max compatibility
+            });
+        }
 
-        socket.on('connect', () => {
-            console.log('CLIENT: Connected to socket server');
-            setConnected(true);
-            socket.emit('join', { room: streamId });
-        });
+        const socket = socketRef.current;
+
+        const joinRoom = () => {
+            if (socket.connected) {
+                console.log('CLIENT: Joining room', streamId);
+                socket.emit('join', { room: streamId });
+                setConnected(true);
+            }
+        };
+
+        socket.on('connect', joinRoom);
+
+        // Also try joining immediately if already connected
+        joinRoom();
 
         socket.on('disconnect', () => {
-            console.log('CLIENT: Disconnected from socket server');
+            console.log('CLIENT: Disconnected');
             setConnected(false);
         });
 
         socket.on('new_task', (task) => {
             console.log('REAL-TIME: New task received', task);
             setTasks(prev => {
-                // Prevent duplicate addition
-                if (prev.find(t => t._id === task._id)) return prev;
-                // Add new task to the TOP
+                const exists = prev.find(t => t._id === task._id);
+                if (exists) return prev;
                 return [task, ...prev];
             });
         });
 
         socket.on('task_voted', (data) => {
-            console.log('REAL-TIME: Task voted', data);
             setTasks(prev => prev.map(t =>
                 t._id === data.taskId ? { ...t, votes: data.votes } : t
             ));
         });
 
         socket.on('task_status_changed', (data) => {
-            console.log('REAL-TIME: Task status changed', data);
             setTasks(prev => prev.map(t =>
                 t._id === data.taskId ? { ...t, status: data.status } : t
             ));
         });
 
         socket.on('task_deleted', ({ task_id }) => {
-            console.log('REAL-TIME: Task deleted', task_id);
             setTasks(prev => prev.filter(t => t._id !== task_id));
         });
 
         return () => {
-            console.log('CLIENT: Cleaning up socket');
+            // Cleanup listeners but keep socket open if navigating between streams? 
+            // Better to disconnect for cleanliness in this app.
+            socket.off('connect');
+            socket.off('disconnect');
+            socket.off('new_task');
+            socket.off('task_voted');
+            socket.off('task_status_changed');
+            socket.off('task_deleted');
             socket.disconnect();
+            socketRef.current = null;
         };
     }, [streamId]);
 
