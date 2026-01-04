@@ -27,7 +27,9 @@ class App extends Component {
                 <span className="fs-3">⚡</span> <strong>TaskStream</strong> <small className="opacity-75">PRO</small>
               </Link>
               <div className="ms-auto flex-row d-flex gap-2">
-                <Link className="btn btn-outline-light btn-sm px-3 rounded-pill" to="/admin/dashboard">Admin Console</Link>
+                {localStorage.getItem('admin_token') && (
+                  <Link className="btn btn-outline-light btn-sm px-3 rounded-pill" to="/admin/dashboard">Admin Console</Link>
+                )}
               </div>
             </div>
           </nav>

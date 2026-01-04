@@ -33,14 +33,18 @@ const StreamPage = ({ match }) => {
         socket.on('new_task', (task) => {
             console.log('REAL-TIME: New task received', task);
             setTasks(prev => {
+                // Prevent duplicate addition
                 if (prev.find(t => t._id === task._id)) return prev;
+                // Add new task to the TOP
                 return [task, ...prev];
             });
         });
 
         socket.on('task_updated', (updatedTask) => {
             console.log('REAL-TIME: Task updated', updatedTask);
-            setTasks(prev => prev.map(t => t._id === updatedTask._id ? updatedTask : t));
+            setTasks(prev => prev.map(t =>
+                t._id === updatedTask._id ? updatedTask : t
+            ));
         });
 
         socket.on('task_deleted', ({ task_id }) => {
