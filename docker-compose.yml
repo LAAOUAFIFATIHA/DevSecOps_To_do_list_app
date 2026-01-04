@@ -3,7 +3,7 @@ version: '3.8'
 services:
   frontend:
     build: ./frontend
-    image: laaouafifatiha/todo-frontend:latest
+    image: laaouafifatiha/todo-frontend-enhanced:latest
     container_name: task_web_container
     ports:
       - "3000:80"
@@ -17,7 +17,7 @@ services:
 
   backend:
     build: ./backend
-    image: laaouafifatiha/todo-backend:latest
+    image: laaouafifatiha/todo-backend-enhanced:latest
     container_name: task_api_container
     ports:
       - "5000:5000"

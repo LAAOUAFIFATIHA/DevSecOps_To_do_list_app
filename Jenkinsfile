@@ -2,8 +2,8 @@ pipeline {
     agent any
 
     environment {
-        DOCKER_IMAGE_BACKEND = "laaouafifatiha/todo-backend"
-        DOCKER_IMAGE_FRONTEND = "laaouafifatiha/todo-frontend"
+        DOCKER_IMAGE_BACKEND = "laaouafifatiha/todo-backend-enhanced"
+        DOCKER_IMAGE_FRONTEND = "laaouafifatiha/todo-frontend-enhanced"
         // Optional: You can set HOST_IP here if you want it hardcoded in Jenkins
         // HOST_IP = "192.168.176.128"
     }
