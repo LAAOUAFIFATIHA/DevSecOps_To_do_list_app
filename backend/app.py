@@ -28,12 +28,12 @@ def get_local_ip():
         logger.error(f"Error detecting local IP: {e}")
         return "127.0.0.1"
 
+app = Flask(__name__)
+
 @app.errorhandler(Exception)
 def handle_error(e):
     logger.error(f'Server Error: {str(e)}')
     return jsonify({'error': str(e)}), 500
-
-app = Flask(__name__)
 
 # Config
 app.config['MONGO_DBNAME'] = 'tododb'
