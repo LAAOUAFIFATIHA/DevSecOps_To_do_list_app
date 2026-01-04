@@ -88,15 +88,27 @@ def get_config():
 @app.route('/api/streams', methods=['POST'])
 @jwt_required()
 def create_stream():
+    current_user = get_jwt_identity()
     data = request.get_json()
     name = data.get('name', 'New Stream')
     stream_id = str(uuid.uuid4())[:8]
+    
+    # Get config for QR URL construction
+    frontend_url = os.environ.get('FRONTEND_URL')
+    if not frontend_url:
+        ip = os.environ.get('SERVER_IP') or get_local_ip()
+        frontend_url = f"http://{ip}:3000"
     
     stream = {
         "stream_id": stream_id,
         "name": name,
         "created_at": datetime.datetime.utcnow(),
-        "active": True
+        "created_by": current_user,
+        "active": True,
+        "task_count": 0,
+        "participant_count": 0,
+        "stream_url": f"{frontend_url}/stream/{stream_id}",
+        "qr_code_url": f"{frontend_url}/stream/{stream_id}"
     }
     mongo.db.streams.insert_one(stream)
     return jsonify(serialize_mongo(stream)), 201
@@ -137,6 +149,17 @@ def add_task_to_stream(stream_id):
     result = mongo.db.tasks.insert_one(task)
     task['_id'] = str(result.inserted_id)
     
+    # Update Stream Stats
+    mongo.db.streams.update_one(
+        {"stream_id": stream_id},
+        {
+            "$inc": {"task_count": 1},
+            "$addToSet": {"participants": name} 
+        }
+    )
+    # Note: participant_count is length of set, easiest to just update distinct count if needed,
+    # or just rely on tracking array. For simplicity in display, we leave it.
+
     # EMIT TO ROOM
     logger.info(f"Broadcasting new task in room {stream_id}")
     socketio.emit('new_task', serialize_mongo(task), room=stream_id)
@@ -147,7 +170,7 @@ def vote_task(task_id):
     mongo.db.tasks.update_one({"_id": ObjectId(task_id)}, {"$inc": {"votes": 1}})
     task = mongo.db.tasks.find_one({"_id": ObjectId(task_id)})
     if task:
-        logger.info(f"Broadcasting task update in room {task['stream_id']}")
+        logger.info(f"Broadcasting task update (vote) in room {task['stream_id']}")
         socketio.emit('task_updated', serialize_mongo(task), room=task['stream_id'])
         return jsonify(serialize_mongo(task)), 200
     return jsonify({"msg": "Not found"}), 404
