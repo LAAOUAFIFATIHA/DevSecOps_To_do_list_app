@@ -40,10 +40,17 @@ const StreamPage = ({ match }) => {
             });
         });
 
-        socket.on('task_updated', (updatedTask) => {
-            console.log('REAL-TIME: Task updated', updatedTask);
+        socket.on('task_voted', (data) => {
+            console.log('REAL-TIME: Task voted', data);
             setTasks(prev => prev.map(t =>
-                t._id === updatedTask._id ? updatedTask : t
+                t._id === data.taskId ? { ...t, votes: data.votes } : t
+            ));
+        });
+
+        socket.on('task_status_changed', (data) => {
+            console.log('REAL-TIME: Task status changed', data);
+            setTasks(prev => prev.map(t =>
+                t._id === data.taskId ? { ...t, status: data.status } : t
             ));
         });
 

@@ -170,8 +170,14 @@ def vote_task(task_id):
     mongo.db.tasks.update_one({"_id": ObjectId(task_id)}, {"$inc": {"votes": 1}})
     task = mongo.db.tasks.find_one({"_id": ObjectId(task_id)})
     if task:
-        logger.info(f"Broadcasting task update (vote) in room {task['stream_id']}")
-        socketio.emit('task_updated', serialize_mongo(task), room=task['stream_id'])
+        stream_id = task['stream_id']
+        logger.info(f"Broadcasting task update (vote) in room {stream_id}")
+        # Emit specific event as requested
+        socketio.emit('task_voted', {
+            'taskId': str(task['_id']),
+            'votes': task['votes'],
+            'streamId': stream_id
+        }, room=stream_id)
         return jsonify(serialize_mongo(task)), 200
     return jsonify({"msg": "Not found"}), 404
 
@@ -198,7 +204,11 @@ def update_task_status(task_id):
     task = mongo.db.tasks.find_one({"_id": ObjectId(task_id)})
     if task:
         logger.info(f"Broadcasting task status update in room {task['stream_id']}")
-        socketio.emit('task_updated', serialize_mongo(task), room=task['stream_id'])
+        socketio.emit('task_status_changed', {
+            'taskId': str(task['_id']), 
+            'status': task['status'],
+            'streamId': task['stream_id']
+        }, room=task['stream_id'])
         return jsonify(serialize_mongo(task)), 200
     return jsonify({"msg": "Not found"}), 404
 
