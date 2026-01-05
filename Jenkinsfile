@@ -113,10 +113,19 @@ pipeline {
 
                             # Check 3: Frontend Accessibility
                             echo "Testing Frontend Access..."
-                            if curl -f -s http://localhost:3000 > /dev/null; then
+                            if docker exec task_web_container wget --spider -q http://localhost:80; then
                                 echo "✅ Frontend is accessible."
                             else
                                 echo "❌ Frontend accessibility check FAILED."
+                                exit 1
+                            fi
+                            
+                            # Check 4: MongoDB Container
+                            echo "Testing MongoDB..."
+                            if [ $(docker ps -q -f name=task_db_container | wc -l) -eq 1 ]; then
+                                echo "✅ MongoDB container is running."
+                            else
+                                echo "❌ MongoDB container check FAILED."
                                 exit 1
                             fi
                         '''
@@ -150,13 +159,68 @@ pipeline {
                             echo "Restarting previous stable version..."
                             docker-compose up -d
                             
-                            echo "Verifying rollback status..."
-                            sleep 10
-                            if docker exec task_api_container curl -f -s http://localhost:5000/health > /dev/null; then
-                                echo "✅ ROLLBACK SUCCESSFUL: System restored to previous stable state."
+                            echo "---------------------------------------------------"
+                            echo "🔍 VERIFYING ROLLBACK STATUS..."
+                            echo "---------------------------------------------------"
+                            sleep 15
+                            
+                            # Comprehensive rollback verification
+                            rollback_success=true
+                            
+                            # Check 1: All containers are running
+                            echo "Checking container status..."
+                            if [ $(docker ps -q -f name=task_api_container | wc -l) -eq 1 ]; then
+                                echo "✅ Backend container is running"
                             else
-                                echo "❌ ROLLBACK WARNING: System restored but health check failed. Manual intervention required."
+                                echo "❌ Backend container is NOT running"
+                                rollback_success=false
                             fi
+                            
+                            if [ $(docker ps -q -f name=task_web_container | wc -l) -eq 1 ]; then
+                                echo "✅ Frontend container is running"
+                            else
+                                echo "❌ Frontend container is NOT running"
+                                rollback_success=false
+                            fi
+                            
+                            if [ $(docker ps -q -f name=task_db_container | wc -l) -eq 1 ]; then
+                                echo "✅ MongoDB container is running"
+                            else
+                                echo "❌ MongoDB container is NOT running"
+                                rollback_success=false
+                            fi
+                            
+                            # Check 2: Backend health endpoint
+                            echo "Checking backend health..."
+                            if docker exec task_api_container curl -f -s http://localhost:5000/health > /dev/null 2>&1; then
+                                echo "✅ Backend is healthy after rollback"
+                            else
+                                echo "❌ Backend health check failed after rollback"
+                                rollback_success=false
+                            fi
+                            
+                            # Check 3: Frontend accessibility
+                            echo "Checking frontend accessibility..."
+                            if docker exec task_web_container wget --spider -q http://localhost:80 2>&1; then
+                                echo "✅ Frontend is accessible after rollback"
+                            else
+                                echo "❌ Frontend accessibility check failed after rollback"
+                                rollback_success=false
+                            fi
+                            
+                            # Final verdict
+                            echo "---------------------------------------------------"
+                            if [ "$rollback_success" = true ]; then
+                                echo "✅ ROLLBACK SUCCESSFUL: System fully restored to previous stable state."
+                                echo "   - All 3 containers running"
+                                echo "   - Backend health check passed"
+                                echo "   - Frontend accessibility verified"
+                            else
+                                echo "❌ ROLLBACK WARNING: System partially restored but some checks failed."
+                                echo "   Manual intervention may be required."
+                                echo "   Run 'docker ps' and 'docker logs <container>' to diagnose."
+                            fi
+                            echo "---------------------------------------------------"
                         '''
                         
                         // Fail the build in Jenkins so needed attention is drawn
