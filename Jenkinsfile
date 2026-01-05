@@ -73,8 +73,8 @@ pipeline {
                         // Start new containers
                         sh "docker-compose up -d --remove-orphans"
                         
-                        echo "⏳ Waiting 20s for services to stabilize..."
-                        sleep 20
+                        echo "⏳ Waiting 30s for services to fully stabilize..."
+                        sleep 30
 
                         // Comprehensive Health Checks
                         sh '''
@@ -113,12 +113,20 @@ pipeline {
 
                             # Check 3: Frontend Accessibility
                             echo "Testing Frontend Access..."
-                            if docker exec task_web_container wget --spider -q http://localhost:80; then
-                                echo "✅ Frontend is accessible."
-                            else
-                                echo "❌ Frontend accessibility check FAILED."
-                                exit 1
-                            fi
+                            MAX_FRONTEND_RETRIES=5
+                            for i in $(seq 1 $MAX_FRONTEND_RETRIES); do
+                                if docker exec task_web_container wget --spider -q http://localhost:80 2>/dev/null; then
+                                    echo "✅ Frontend is accessible."
+                                    break
+                                else
+                                    if [ $i -eq $MAX_FRONTEND_RETRIES ]; then
+                                        echo "❌ Frontend check failed after $MAX_FRONTEND_RETRIES attempts"
+                                        exit 1
+                                    fi
+                                    echo "⏳ Waiting for frontend... ($i/$MAX_FRONTEND_RETRIES)"
+                                    sleep 5
+                                fi
+                            done
                             
                             # Check 4: MongoDB Container
                             echo "Testing MongoDB..."
@@ -162,7 +170,7 @@ pipeline {
                             echo "---------------------------------------------------"
                             echo "🔍 VERIFYING ROLLBACK STATUS..."
                             echo "---------------------------------------------------"
-                            sleep 15
+                            sleep 25
                             
                             # Comprehensive rollback verification
                             rollback_success=true
@@ -201,9 +209,21 @@ pipeline {
                             
                             # Check 3: Frontend accessibility
                             echo "Checking frontend accessibility..."
-                            if docker exec task_web_container wget --spider -q http://localhost:80 2>&1; then
-                                echo "✅ Frontend is accessible after rollback"
-                            else
+                            FRONTEND_OK=false
+                            for i in $(seq 1 5); do
+                                if docker exec task_web_container wget --spider -q http://localhost:80 2>/dev/null; then
+                                    echo "✅ Frontend is accessible after rollback"
+                                    FRONTEND_OK=true
+                                    break
+                                else
+                                    if [ $i -lt 5 ]; then
+                                        echo "⏳ Waiting for frontend... ($i/5)"
+                                        sleep 5
+                                    fi
+                                fi
+                            done
+                            
+                            if [ "$FRONTEND_OK" = "false" ]; then
                                 echo "❌ Frontend accessibility check failed after rollback"
                                 rollback_success=false
                             fi

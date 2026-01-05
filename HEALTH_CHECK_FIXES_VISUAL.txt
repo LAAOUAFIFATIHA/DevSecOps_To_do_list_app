@@ -1,0 +1,280 @@
+╔══════════════════════════════════════════════════════════════════════════════╗
+║                    JENKINS PIPELINE HEALTH CHECK FIXES                       ║
+║                          Container Network Isolation                         ║
+╚══════════════════════════════════════════════════════════════════════════════╝
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ PROBLEM: Health checks failing due to Docker network isolation              │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────┐
+│  Jenkins Container                  │
+│  ┌───────────────────────────────┐  │
+│  │ curl http://localhost:3000    │  │ ❌ FAILS
+│  │ (Jenkins localhost)           │  │    localhost = Jenkins container
+│  └───────────────────────────────┘  │    NOT frontend container!
+└─────────────────────────────────────┘
+         │
+         │ Docker Network Isolation
+         ↓
+┌─────────────────────────────────────┐
+│  Frontend Container                 │
+│  ┌───────────────────────────────┐  │
+│  │ nginx:80                      │  │ ← Can't reach from Jenkins localhost
+│  │ (Different network namespace) │  │
+│  └───────────────────────────────┘  │
+└─────────────────────────────────────┘
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ SOLUTION: Use docker exec to run commands INSIDE target containers          │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────┐
+│  Jenkins Container                  │
+│  ┌───────────────────────────────┐  │
+│  │ docker exec                   │  │
+│  │   task_web_container          │  │ ✅ SUCCESS
+│  │   wget --spider               │  │    Command runs INSIDE
+│  │   http://localhost:80         │  │    frontend container
+│  └───────────────────────────────┘  │
+└─────────────────────────────────────┘
+         │
+         │ Docker exec enters container
+         ↓
+┌─────────────────────────────────────┐
+│  Frontend Container                 │
+│  ┌───────────────────────────────┐  │
+│  │ wget http://localhost:80      │  │ ← localhost = this container
+│  │ (Runs inside container)       │  │    Check succeeds!
+│  └───────────────────────────────┘  │
+└─────────────────────────────────────┘
+
+
+═══════════════════════════════════════════════════════════════════════════════
+                              CHANGES SUMMARY
+═══════════════════════════════════════════════════════════════════════════════
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 1. DEPLOYMENT HEALTH CHECKS (Lines 114-130)                                 │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+BEFORE (❌ BROKEN):
+─────────────────────────────────────────────────────────────────────────────
+# Check 3: Frontend Accessibility
+echo "Testing Frontend Access..."
+if curl -f -s http://localhost:3000 > /dev/null; then
+    echo "✅ Frontend is accessible."
+else
+    echo "❌ Frontend accessibility check FAILED."
+    exit 1
+fi
+─────────────────────────────────────────────────────────────────────────────
+
+AFTER (✅ FIXED):
+─────────────────────────────────────────────────────────────────────────────
+# Check 3: Frontend Accessibility
+echo "Testing Frontend Access..."
+if docker exec task_web_container wget --spider -q http://localhost:80; then
+    echo "✅ Frontend is accessible."
+else
+    echo "❌ Frontend accessibility check FAILED."
+    exit 1
+fi
+
+# Check 4: MongoDB Container
+echo "Testing MongoDB..."
+if [ $(docker ps -q -f name=task_db_container | wc -l) -eq 1 ]; then
+    echo "✅ MongoDB container is running."
+else
+    echo "❌ MongoDB container check FAILED."
+    exit 1
+fi
+─────────────────────────────────────────────────────────────────────────────
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ 2. ROLLBACK VERIFICATION (Lines 162-226)                                    │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+BEFORE (❌ INCOMPLETE):
+─────────────────────────────────────────────────────────────────────────────
+echo "Verifying rollback status..."
+sleep 10
+if docker exec task_api_container curl -f -s http://localhost:5000/health > /dev/null; then
+    echo "✅ ROLLBACK SUCCESSFUL: System restored to previous stable state."
+else
+    echo "❌ ROLLBACK WARNING: System restored but health check failed."
+fi
+─────────────────────────────────────────────────────────────────────────────
+
+AFTER (✅ COMPREHENSIVE):
+─────────────────────────────────────────────────────────────────────────────
+echo "---------------------------------------------------"
+echo "🔍 VERIFYING ROLLBACK STATUS..."
+echo "---------------------------------------------------"
+sleep 15
+
+# Comprehensive rollback verification
+rollback_success=true
+
+# Check 1: All containers are running
+echo "Checking container status..."
+if [ $(docker ps -q -f name=task_api_container | wc -l) -eq 1 ]; then
+    echo "✅ Backend container is running"
+else
+    echo "❌ Backend container is NOT running"
+    rollback_success=false
+fi
+
+if [ $(docker ps -q -f name=task_web_container | wc -l) -eq 1 ]; then
+    echo "✅ Frontend container is running"
+else
+    echo "❌ Frontend container is NOT running"
+    rollback_success=false
+fi
+
+if [ $(docker ps -q -f name=task_db_container | wc -l) -eq 1 ]; then
+    echo "✅ MongoDB container is running"
+else
+    echo "❌ MongoDB container is NOT running"
+    rollback_success=false
+fi
+
+# Check 2: Backend health endpoint
+echo "Checking backend health..."
+if docker exec task_api_container curl -f -s http://localhost:5000/health > /dev/null 2>&1; then
+    echo "✅ Backend is healthy after rollback"
+else
+    echo "❌ Backend health check failed after rollback"
+    rollback_success=false
+fi
+
+# Check 3: Frontend accessibility
+echo "Checking frontend accessibility..."
+if docker exec task_web_container wget --spider -q http://localhost:80 2>&1; then
+    echo "✅ Frontend is accessible after rollback"
+else
+    echo "❌ Frontend accessibility check failed after rollback"
+    rollback_success=false
+fi
+
+# Final verdict
+echo "---------------------------------------------------"
+if [ "$rollback_success" = true ]; then
+    echo "✅ ROLLBACK SUCCESSFUL: System fully restored to previous stable state."
+    echo "   - All 3 containers running"
+    echo "   - Backend health check passed"
+    echo "   - Frontend accessibility verified"
+else
+    echo "❌ ROLLBACK WARNING: System partially restored but some checks failed."
+    echo "   Manual intervention may be required."
+    echo "   Run 'docker ps' and 'docker logs <container>' to diagnose."
+fi
+echo "---------------------------------------------------"
+─────────────────────────────────────────────────────────────────────────────
+
+
+═══════════════════════════════════════════════════════════════════════════════
+                          EXPECTED PIPELINE OUTPUT
+═══════════════════════════════════════════════════════════════════════════════
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ SCENARIO 1: Successful Deployment                                           │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+🚀 Deploying new version for testing...
+Cleaning up existing containers...
+✅ Cleanup complete.
+⏳ Waiting 20s for services to stabilize...
+Running System Health Checks...
+✅ Backend is healthy.
+✅ Frontend is accessible.
+✅ MongoDB container is running.
+✅ ALL TESTS PASSED. Version 54 is live.
+Pushing verified images to Docker Hub...
+✅ DEPLOYMENT SUCCESSFUL: Version 54
+
+
+┌──────────────────────────────────────────────────────────────────────────────┐
+│ SCENARIO 2: Failed Deployment → Automatic Rollback                          │
+└──────────────────────────────────────────────────────────────────────────────┘
+
+🚀 Deploying new version for testing...
+Cleaning up existing containers...
+✅ Cleanup complete.
+⏳ Waiting 20s for services to stabilize...
+Running System Health Checks...
+✅ Backend is healthy.
+❌ Frontend accessibility check FAILED.
+🔴 DEPLOYMENT FAILED! INITIATING AUTOMATIC ROLLBACK...
+
+---------------------------------------------------
+🔄 ROLLBACK SEQUENCE STARTED
+---------------------------------------------------
+Stopping failed deployment...
+Restoring previous stable images...
+Restarting previous stable version...
+
+---------------------------------------------------
+🔍 VERIFYING ROLLBACK STATUS...
+---------------------------------------------------
+Checking container status...
+✅ Backend container is running
+✅ Frontend container is running
+✅ MongoDB container is running
+Checking backend health...
+✅ Backend is healthy after rollback
+Checking frontend accessibility...
+✅ Frontend is accessible after rollback
+---------------------------------------------------
+✅ ROLLBACK SUCCESSFUL: System fully restored to previous stable state.
+   - All 3 containers running
+   - Backend health check passed
+   - Frontend accessibility verified
+---------------------------------------------------
+
+
+═══════════════════════════════════════════════════════════════════════════════
+                              KEY IMPROVEMENTS
+═══════════════════════════════════════════════════════════════════════════════
+
+✅ Proper Network Context
+   • All checks run inside target containers using docker exec
+   • No localhost confusion between Jenkins and app containers
+
+✅ Comprehensive Verification
+   • Checks all 3 containers (backend, frontend, MongoDB)
+   • Verifies container status AND application health
+   • Clear pass/fail for each component
+
+✅ Better Error Reporting
+   • Detailed output showing which check failed
+   • Helpful diagnostic messages
+   • Clear success/failure verdicts
+
+✅ Rollback Confidence
+   • Multiple verification points
+   • Won't report success unless ALL checks pass
+   • Actionable guidance if rollback fails
+
+
+═══════════════════════════════════════════════════════════════════════════════
+                              NEXT STEPS
+═══════════════════════════════════════════════════════════════════════════════
+
+1. Commit changes:
+   git add Jenkinsfile
+   git commit -m "Fix: Correct health checks using docker exec"
+   git push origin main
+
+2. Trigger Jenkins build
+   • Should now pass all health checks
+   • Verify deployment succeeds
+
+3. Test rollback:
+   • Introduce error in code
+   • Push to trigger build
+   • Verify rollback executes with all checks passing
+
+═══════════════════════════════════════════════════════════════════════════════
