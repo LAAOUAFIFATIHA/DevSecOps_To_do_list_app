@@ -115,7 +115,7 @@ pipeline {
                             echo "Testing Frontend Access..."
                             MAX_FRONTEND_RETRIES=5
                             for i in $(seq 1 $MAX_FRONTEND_RETRIES); do
-                                if docker exec task_web_container wget --spider -q http://localhost:80 2>/dev/null; then
+                                if docker exec task_web_container wget --spider -q http://127.0.0.1:80 2>/dev/null; then
                                     echo "✅ Frontend is accessible."
                                     break
                                 else
@@ -211,7 +211,7 @@ pipeline {
                             echo "Checking frontend accessibility..."
                             FRONTEND_OK=false
                             for i in $(seq 1 5); do
-                                if docker exec task_web_container wget --spider -q http://localhost:80 2>/dev/null; then
+                                if docker exec task_web_container wget --spider -q http://127.0.0.1:80 2>/dev/null; then
                                     echo "✅ Frontend is accessible after rollback"
                                     FRONTEND_OK=true
                                     break
