@@ -58,6 +58,18 @@ pipeline {
                 script {
                     try {
                         echo "🚀 Deploying new version for testing..."
+                        
+                        // Force cleanup of any existing containers to prevent name conflicts
+                        sh '''
+                            echo "Cleaning up existing containers..."
+                            docker-compose down -v 2>/dev/null || true
+                            
+                            # Force remove containers by name if they still exist
+                            docker rm -f task_db_container task_api_container task_web_container 2>/dev/null || true
+                            
+                            echo "✅ Cleanup complete."
+                        '''
+                        
                         // Start new containers
                         sh "docker-compose up -d --remove-orphans"
                         
@@ -120,7 +132,10 @@ pipeline {
                             
                             # 1. Stop the failed containers
                             echo "Stopping failed deployment..."
-                            docker-compose down
+                            docker-compose down -v 2>/dev/null || true
+                            
+                            # Force remove containers by name if they still exist
+                            docker rm -f task_db_container task_api_container task_web_container 2>/dev/null || true
                             
                             # 2. Restore backup tags
                             echo "Restoring previous stable images..."
